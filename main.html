@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>RPG simulator</title>
+    <style>
+        body {
+            text-align: center;
+        }
+        input[type="text"] {
+            width: 300px;
+            height: 30px;
+        }
+        input[type="text"]:hover {
+            background-color: rgb(0, 174, 255);
+        }
+        input[type="text"]:focus {
+            background-color: rgb(0, 81, 255);
+        }
+        button {
+            width: 100px;
+            height: 35px;
+            background-color: rgb(58, 57, 57);
+            color: white;
+            margin-bottom: 20px;
+            margin-top: 20px;
+        }
+        button:hover {
+            background-color: rgb(87, 85, 85);
+        }
+        .container {
+            display: flex;
+            justify-content: space-between;
+            margin: 0 auto;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            width: 1000px;
+            height: 200px;
+            overflow: scroll;
+            border: 1px solid black;
+            text-align: left;
+        }
+        .info-box {
+            width: 48%;
+        }
+        textarea {
+            resize: none;
+            width: 400px;
+            height: 100px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h2>RPGのシュミレーター(戦闘シーン)</h2>
+    <p>rpgのシュミレーターです</p>
+    <input type="text" id="name" placeholder="ニックネームを入力">
+    <br>
+    <textarea readonly hidden id="waza">技表
+殴る：相手を殴る　攻撃力10
+魔法：魔法を使う攻撃力0～100 消費mp50
+火：炎で攻撃　攻撃力0～20
+逃げる:逃げる（敗北）
+    </textarea>
+    <br>
+    <button id="btn" onclick="start()">スタート</button>
+    <br>
+    <input type="text" id="navi" readonly>
+    <br>
+    <div class="container" id="status"></div>
+    <script>
+        let d = document;
+        let waza = d.getElementById("waza");
+        let player;
+        let enemy;
+        let navi = d.getElementById("navi");
+        let btn = d.getElementById("btn");
+        let tbox = d.getElementById("name");
+        let container = d.getElementById("status");
+        const typingInterval = 50;
+
+        const propertyFormat = obj => `
+          名前: ${obj.name}
+          HP: ${obj.hp}
+          MP: ${obj.mp}
+          攻撃力: ${obj.attack}
+          防御力: ${obj.defense}
+        `;
+
+        function createPlayer() {
+            let playerName = tbox.value.trim() || "anonymous";
+            player = {
+                name: playerName,
+                hp: 100,
+                mp: 100,
+                attack: 20,
+                defense: 10
+            };
+        }
+
+        function createEnemy() {
+            enemy = {
+                name: "敵",
+                hp: 100,
+                mp: 100,
+                attack: 15,
+                defense: 5
+            };
+        }
+
+        function message(text) {
+            return new Promise(resolve => {
+                let currentIndex = 0;
+                function displayNextChar() {
+                    if (currentIndex < text.length) {
+                        navi.value += text[currentIndex];
+                        currentIndex++;
+                        setTimeout(displayNextChar, typingInterval);
+                    } else {
+                        setTimeout(() => {
+                            navi.value = "";
+                            resolve();
+                        }, 500);
+                    }
+                }
+                displayNextChar();
+            });
+        }
+
+        async function start() {
+            tbox.disabled = true;
+            btn.disabled = true;
+            tbox.textContent = "";
+            tbox.placeholder = "しばらくお待ちください。";
+            await message("戦闘を開始しています...");
+            await message("hp等を初期化中...");
+            await message("最終処理中...");
+            tbox.placeholder = "攻撃名を入力";
+            
+            await message("敵が現れた!");
+            btn.textContent = "attack";
+            btn.onclick = function() { attack_1p(); };
+            createPlayer();
+            createEnemy();
+            displayPlayerInfo();
+            displayEnemyInfo();
+            att();
+        }
+
+        function displayPlayerInfo() {
+            let playerInfo = document.createElement("div");
+            playerInfo.classList.add("info-box", "player-info");
+            let playerHeaderText = document.createElement("div");
+            playerHeaderText.textContent = "プレイヤー情報";
+            playerInfo.appendChild(playerHeaderText);
+            let playerStatusText = document.createElement("div");
+            playerStatusText.textContent = propertyFormat(player);
+            playerInfo.appendChild(playerStatusText);
+            container.appendChild(playerInfo);
+        }
+
+        function displayEnemyInfo() {
+            let enemyInfo = document.createElement("div");
+            enemyInfo.classList.add("info-box", "enemy-info");
+            let enemyHeaderText = document.createElement("div");
+            enemyHeaderText.textContent = "敵情報";
+            enemyInfo.appendChild(enemyHeaderText);
+            let enemyStatusText = document.createElement("div");
+            enemyStatusText.textContent = propertyFormat(enemy);
+            enemyInfo.appendChild(enemyStatusText);
+            container.appendChild(enemyInfo);
+        }
+
+        async function att() {
+            await message(`${player.name}の攻撃`);
+            tbox.disabled = false;
+            waza.hidden = false;
+            btn.disabled = false;
+        }
+
+        async function attack_1p() {
+            btn.disabled = true;
+            switch(tbox.value) {
+                case "殴る":
+                    await message(`${player.name}は殴った！`);
+                    await message(`10のダメージ`);
+                    enemy.hp -= 10;
+                    break;
+                case "魔法":
+                    if (player.mp >= 50) {
+                        let power = Math.floor(Math.random() * 100);
+                        await message(`${player.name}は魔法を使った`);
+                        await message(`${power}のダメージ`);
+                        enemy.hp -= power;
+                        player.mp -= 50;
+                    } else {
+                        await message("MPが足りません！");
+                        return;
+                    }
+                    break;
+                case "火":
+                    let firePower = Math.floor(Math.random() * 20);
+                    await message(`${player.name}は炎を使った`);
+                    await message(`${firePower}のダメージ`);
+                    enemy.hp -= firePower;
+                    break;
+                case "逃げる":
+                    await message(`${player.name}は逃げた`);
+                    await message(`${enemy.name}の勝利`);
+                    return;
+                default:
+                    await message("無効な攻撃名です");
+                    btn.disabled = false;
+                    return;
+            }
+            updateInfo();
+            finishcheck_player();
+        }
+
+        async function attack_enemy() {
+            let attnum = Math.floor(Math.random() * 3);
+            switch(attnum) {
+                case 0:
+                    await message(`${enemy.name}は殴った`);
+                    await message("10のダメージ");
+                    player.hp -= 10;
+                    break;
+                case 1:
+                    await message(`${enemy.name}は魔法を使った`);
+                    if(enemy.mp >= 50) {
+                        let power = Math.floor(Math.random() * 100);
+                        await message(`${power}の攻撃`);
+                        player.hp -= power;
+                        enemy.mp -= 50;
+                    } else {
+                        await message("MPが足りません！");
+                    }
+                    break;
+                case 2:
+                    await message(`${enemy.name}は炎を使った`);
+                    let power = Math.floor(Math.random() * 20);
+                    await message(`${power}のダメージ`);
+                    player.hp -= power;
+                    break;
+            }
+            updateInfo();
+            finishcheck_enemy();
+        }
+
+        async function finishcheck_player() {
+            if(enemy.hp <= 0) {
+                await message(`${enemy.name}は倒れた`);
+                await message(`${player.name}の勝利`);
+            } else {
+                attack_enemy();
+            }
+        }
+
+        async function finishcheck_enemy() {
+            if(player.hp <= 0) {
+                await message(`${player.name}は倒れた`);
+                await message(`${enemy.name}の勝利`);
+            } else {
+                att();
+            }
+        }
+
+        function updateInfo() {
+            let playerInfo = container.querySelector('.player-info');
+            let enemyInfo = container.querySelector('.enemy-info');
+            if (playerInfo && enemyInfo) {
+                let playerStatusText = playerInfo.querySelector('div:nth-child(2)');
+                playerStatusText.textContent = propertyFormat(player);
+                let enemyStatusText = enemyInfo.querySelector('div:nth-child(2)');
+                enemyStatusText.textContent = propertyFormat(enemy);
+            } else {
+                console.error('情報が見つかりません');
+            }
+        }
+    </script>
+</body>
+</html>
